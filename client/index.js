@@ -80,21 +80,22 @@ function mainPage() {
         a("Make a new commit").att("href", "/?make_commit=1"),
         h2("Branches"),
         branchAddForm(),
-        ...dyn.branches.flatMap(branch => [
+        ...dyn.branches.flatMap(branch =>
             branch === dyn.currentBranch ?
-              span(`${branch} (current)`)
-            : a(branch).att("href", `/switch_branch/${branch}`),
-            button("Delete").event("click", () => {
-                fetch("/api/branch_delete", {
-                    method: "POST",
-                    headers: {
-                        "Content-Type": "application/json",
-                    },
-                    body: JSON.stringify({ name: branch }),
-                }).then(() => window.location = "/");
-            }),
-            br(),
-        ]),
+              [div(`${branch} (current)`)]
+            : [
+                a(branch).att("href", `/switch_branch/${branch}`),
+                button("Delete").event("click", () => {
+                    fetch("/api/branch_delete", {
+                        method: "POST",
+                        headers: {
+                            "Content-Type": "application/json",
+                        },
+                        body: JSON.stringify({ name: branch }),
+                    }).then(() => window.location = "/");
+                }),
+                br()
+            ]),
         h2("Commit history"),
         ...dyn.commits.flatMap(commit => [
             a(pre(`[${commit.shortHash}] ${commit.message}`)

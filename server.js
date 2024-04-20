@@ -34,8 +34,10 @@ app.get("/index.js", (req, res) => {
 });
 
 app.get("/dyn.js", (req, res) => {
-    const rawBranches = git("branch", "-a").split("\n");
-    const branches = rawBranches.map(raw => raw.slice(2)).filter(raw => raw.length > 0);
+    const rawBranches = git("branch").split("\n");
+    const branches = rawBranches
+        .map(raw => raw.slice(2))
+        .filter(raw => raw.length > 0)
     const currentBranch = rawBranches.find(raw => raw.startsWith("*")).slice(2);
 
     const commits = git("log", "--pretty=format:%h %H %s").split("\n").map(raw => {
@@ -68,6 +70,11 @@ app.get("/dyn.js", (req, res) => {
         export const commits = ${JSON.stringify(commits)};
         export const status = ${JSON.stringify(status)};
     `);
+});
+
+app.get("/switch_branch/:branch", (req, res) => {
+    git("checkout", req.params.branch);
+    res.redirect("/");
 });
 
 app.get("/api/diff/:hash", (req, res) => {

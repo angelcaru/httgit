@@ -61,8 +61,9 @@ function mainPage() {
         a("Make a new commit").att("href", "/?make_commit=1"),
         h2("Branches"),
         ...dyn.branches.map(branch =>
-            div(`${branch}`)
-                .styled("color", branch === dyn.currentBranch ? "blue" : "black")
+            branch === dyn.currentBranch ?
+              div(`${branch} (current)`)
+            : a(branch).att("href", `/switch_branch/${branch}`)
         ),
         h2("Commit history"),
         ...dyn.commits.flatMap(commit => [

@@ -32,16 +32,33 @@ Element.prototype.append = function(...children) {
     }
     return this;
 };
+Element.prototype.event = function(name, handler) {
+    this.addEventListener(name, handler);
+    return this;
+};
 
-for (const tagName of ["a", "div", "h1", "h2", "h3", "pre", "br"]) {
+for (const tagName of ["a", "div", "h1", "h2", "h3", "pre", "br", "button", "form", "ul", "ol", "li"]) {
     window[tagName] = tagFn(tagName);
 }
 
+function input(type, name, placeholder) {
+    return tag("input")
+        .att("type", type)
+        .att("name", name)
+        .att("placeholder", placeholder);
+}
+
+function textarea(name, placeholder) {
+    return tag("textarea")
+        .att("name", name)
+        .att("placeholder", placeholder);
+}
 
 console.log(dyn);
 function mainPage() {
     return [
         h1(`Repository ${dyn.repo}`),
+        a("Make a new commit").att("href", "/?make_commit=1"),
         h2("Branches"),
         ...dyn.branches.map(branch =>
             div(`${branch}`)
@@ -92,10 +109,96 @@ function commitPage(hash) {
     ];
 }
 
+function makeCommitPage() {
+    let stagedList, unstagedList;
+    let toStage   = [];
+    let toUnstage = [];
+    const ret = [
+        a("Back to main page").att("href", "/"),
+        h1(`Make a commit on branch "${dyn.currentBranch}"`),
+        h2("Staged changes", button("Unstage all").event("click", () => dyn.status.forEach(unstageFile))),
+        (stagedList = ul()),
+        h2("Unstaged changes", button("Stage all").event("click", () => dyn.status.forEach(stageFile))),
+        (unstagedList = ul()),
+        form(
+            input("text", "message", "Commit message"),
+            br(), br(),
+            textarea("body", "Commit message body"),
+            br(),
+            button("Submit")
+        ).event("submit", e => {
+            e.preventDefault();
+            fetch("/api/make_commit", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify({
+                    toStage, toUnstage,
+                    message: e.target.message.value,
+                    body: e.target.body.value,
+                }),
+            }).then(() => window.location = "/");
+        }),
+    ];
+
+    function switchStaged(file) {
+        if (file.staged) {
+            if (toStage.includes(file.name)) {
+                toStage = toStage.filter(name => name !== file.name);
+            } else {
+                toUnstage.push(file.name);
+            }
+            file.staged = false;
+        } else {
+            if (toUnstage.includes(file.name)) {
+                toUnstage = toUnstage.filter(name => name !== file.name);
+            } else {
+                toStage.push(file.name);
+            }
+            file.staged = true;
+        }
+        update();
+    }
+    function stageFile(file) {
+        if (!file.staged) {
+            switchStaged(file);
+        }
+    }
+    function unstageFile(file) {
+        if (file.staged) {
+            switchStaged(file);
+        }
+    }
+    function update() {
+        stagedList.clear();
+        unstagedList.clear();
+        dyn.status.forEach(file => {
+            let btn = button().styled("display", "inline");
+            if (file.staged) {
+                btn.append("Unstage");
+                stagedList.append(li(btn, " ", file.name));
+            } else {
+                btn.append("Stage");
+                unstagedList.append(li(btn, " ", file.name));
+            }
+            btn.event("click", () => switchStaged(file));
+        });
+    }
+    update();
+
+    return ret;
+}
+
 const params = Object.fromEntries(new URLSearchParams(window.location.search));
-const page =
-    params.commit ?
-      commitPage(params.commit)
-    : mainPage();
+const page = (function() {
+    if (params.commit) {
+        return commitPage(params.commit);
+    } else if (params.make_commit) {
+        return makeCommitPage();
+    } else {
+        return mainPage();
+    }
+})();
 document.body.append(...page);
 

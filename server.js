@@ -15,6 +15,7 @@ const repoDirAbs = path.resolve(repoDir);
 const repo = path.basename(repoDirAbs);
 
 const app = express();
+app.use(express.json());
 
 function git(...args) {
     return chp.spawnSync("git", args, {
@@ -33,13 +34,11 @@ app.get("/index.js", (req, res) => {
 });
 
 app.get("/dyn.js", (req, res) => {
-    const gitBranchOut = git("branch", "-a");
-    const rawBranches = gitBranchOut.split("\n");
+    const rawBranches = git("branch", "-a").split("\n");
     const branches = rawBranches.map(raw => raw.slice(2)).filter(raw => raw.length > 0);
     const currentBranch = rawBranches.find(raw => raw.startsWith("*")).slice(2);
 
-    const gitLogOut = git("log", "--pretty=format:%h %H %s");
-    const commits = gitLogOut.split("\n").map(raw => {
+    const commits = git("log", "--pretty=format:%h %H %s").split("\n").map(raw => {
         const split = raw.split(" ");
         return {
             shortHash: split[0],
@@ -49,19 +48,48 @@ app.get("/dyn.js", (req, res) => {
         };
     });
 
+    const status = git("status", "--porcelain").split("\n").map(line => {
+        const fileStatus = line.slice(0, 2).toUpperCase();
+        const fileName = line.slice(3);
+        // TODO: parse this properly
+        const staged = !(fileStatus === "??" || fileStatus[0] === " ");
+        return {
+            status: fileStatus,
+            name: fileName,
+            staged,
+        };
+    }).filter(({ name }) => name.length > 0);
+
     res.header("Content-Type", "application/javascript");
     res.send(`
         export const repo = ${JSON.stringify(repo)};
         export const branches = ${JSON.stringify(branches)};
         export const currentBranch = ${JSON.stringify(currentBranch)};
         export const commits = ${JSON.stringify(commits)};
+        export const status = ${JSON.stringify(status)};
     `);
 });
 
 app.get("/api/diff/:hash", (req, res) => {
     const diff = git("show", req.params.hash, "--format=");
     res.send(diff);
-})
+});
+
+app.post("/api/make_commit", (req, res) => {
+    console.log(req.body);
+    const { message, body, toStage, toUnstage } = req.body;
+
+    for (const fileName of toStage) {
+        git("add", fileName);
+    }
+    for (const fileName of toUnstage) {
+        git("rm", "--cached", fileName);
+    }
+
+    git("commit", "-m", message + "\n\n" + body + "\n");
+    res.send();
+});
+
 
 const port = 6969;
 app.listen(port, "127.0.0.1", () => {

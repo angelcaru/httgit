@@ -77,9 +77,19 @@ app.get("/switch_branch/:branch", (req, res) => {
     res.redirect("/");
 });
 
+app.post("/api/branch_delete", (req, res) => {
+    git("branch", "-d", req.body.name, "--force");
+    res.send();
+});
+
 app.get("/api/diff/:hash", (req, res) => {
     const diff = git("show", req.params.hash, "--format=");
     res.send(diff);
+});
+
+app.post("/api/branch_add", (req, res) => {
+    git("checkout", "-b", req.body.name);
+    res.send();
 });
 
 app.post("/api/make_commit", (req, res) => {

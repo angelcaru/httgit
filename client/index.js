@@ -37,7 +37,7 @@ Element.prototype.event = function(name, handler) {
     return this;
 };
 
-for (const tagName of ["a", "div", "h1", "h2", "h3", "pre", "br", "button", "form", "ul", "ol", "li"]) {
+for (const tagName of ["a", "div", "h1", "h2", "h3", "pre", "br", "button", "form", "ul", "ol", "li", "span"]) {
     window[tagName] = tagFn(tagName);
 }
 
@@ -55,16 +55,46 @@ function textarea(name, placeholder) {
 }
 
 console.log(dyn);
+
+function branchAddForm() {
+    return form(
+        input("text", "branchName", "New branch name"),
+        button("Add branch"),
+    ).event("submit", e => {
+        e.preventDefault();
+        fetch("/api/branch_add", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+                name: e.target.branchName.value,
+            }),
+        }).then(() => window.location = "/");
+    });
+}
+
 function mainPage() {
     return [
         h1(`Repository ${dyn.repo}`),
         a("Make a new commit").att("href", "/?make_commit=1"),
         h2("Branches"),
-        ...dyn.branches.map(branch =>
+        branchAddForm(),
+        ...dyn.branches.flatMap(branch => [
             branch === dyn.currentBranch ?
-              div(`${branch} (current)`)
-            : a(branch).att("href", `/switch_branch/${branch}`)
-        ),
+              span(`${branch} (current)`)
+            : a(branch).att("href", `/switch_branch/${branch}`),
+            button("Delete").event("click", () => {
+                fetch("/api/branch_delete", {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                    },
+                    body: JSON.stringify({ name: branch }),
+                }).then(() => window.location = "/");
+            }),
+            br(),
+        ]),
         h2("Commit history"),
         ...dyn.commits.flatMap(commit => [
             a(pre(`[${commit.shortHash}] ${commit.message}`)

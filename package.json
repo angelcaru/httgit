@@ -1,0 +1,14 @@
+{
+  "name": "httgit",
+  "version": "1.0.0",
+  "description": "Web-based Git GUI",
+  "main": "server.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "me, myself and I",
+  "license": "WTFPL",
+  "dependencies": {
+    "express": "^4.19.2"
+  }
+}
